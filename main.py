@@ -39,7 +39,7 @@ def send_welcome(message):
 def chat_with_riveria(message):
     try:
         response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=message.text,
             config={"system_instruction": RIVERIA_PERSONA},
         )
