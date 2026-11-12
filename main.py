@@ -21,7 +21,7 @@ RIVERIA_PERSONA = (
 )
 
 # Актуальные модели: сначала основная, при сбое — запасная
-MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
+MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"]
 user_chats = {}
 
 
