@@ -29,7 +29,7 @@ RIVERIA_PERSONA = (
 )
 
 # Список моделей: сначала пробуем основную, если она перегружена (503) — берем запасную
-MODELS = ["gemini-3.0-flash", "gemini-2.5-flash-lite"]
+MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"]
 
 # Словарь для хранения истории диалогов
 user_chats = {}
