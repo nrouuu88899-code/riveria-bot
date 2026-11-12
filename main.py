@@ -1,26 +1,18 @@
 import os
-import threading
 import time
-from flask import Flask
+from flask import Flask, request
 from google import genai
 import telebot
 
 app = Flask(__name__)
 
-
-@app.route("/")
-def home():
-    return "Riveria is alive!"
-
-
-# Берем ключи из настроек Render (Environment Variables)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL")
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Характер Риверии (Системный промпт)
 RIVERIA_PERSONA = (
     "Ты — Риверия Лиос Альв из аниме 'DanMachi'. "
     "Ты — могущественная эльфийка, королевская особа, рассудительная, спокойная, мудрая "
@@ -28,10 +20,7 @@ RIVERIA_PERSONA = (
     "к собеседнику, иногда можешь строго подколоть за глупости. Отвечай на русском языке."
 )
 
-# Список моделей: сначала пробуем основную, если она перегружена (503) — берем запасную
-MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"]
-
-# Словарь для хранения истории диалогов
+MODELS = ["gemini-3.0-flash", "gemini-2.5-flash-lite"]
 user_chats = {}
 
 
@@ -47,13 +36,12 @@ def get_chat(chat_id, model_name):
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    # Сбрасываем старую память при команде /start
     for k in list(user_chats.keys()):
         if k[0] == message.chat.id:
             user_chats.pop(k, None)
     bot.send_message(
         message.chat.id,
-        "Привет! Я Риверия. Моя память чиста, я готова к беседе. (Если захочешь очистить историю — напиши /clear)",
+        "Привет! Я Риверия. Моя память чиста, я готова к беседе. (Очистить историю — /clear)",
     )
 
 
@@ -75,29 +63,38 @@ def chat_with_riveria(message):
             chat = get_chat(message.chat.id, model_name)
             response = chat.send_message(message.text)
             bot.send_message(message.chat.id, response.text)
-            return  # Успешно ответили — выходим
+            return
         except Exception as e:
             print(f"ОШИБКА на модели {model_name}: {e}", flush=True)
-            continue  # Пробуем следующую модель из списка
+            continue
 
-    # Сработает, только если упали обе модели сразу
     bot.send_message(
         message.chat.id,
         "Хм... Магия дала сбой, смертный. Все потоки перегружены, попробуй через минуту.",
     )
 
 
-def run_bot():
-    # Сбрасываем старые зависшие сессии в Telegram, чтобы избежать ошибки 409
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.infinity_polling(none_stop=True)
+@app.route("/")
+def home():
+    # При каждом открытии страницы обновляем адрес вебхука для Telegram
+    if RENDER_URL:
+        bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+    return "Riveria is alive!"
+
+
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def receive_update():
+    json_str = request.get_data().decode("UTF-8")
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
 
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    if RENDER_URL:
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
 
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
