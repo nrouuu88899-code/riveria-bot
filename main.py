@@ -20,7 +20,8 @@ RIVERIA_PERSONA = (
     "к собеседнику, иногда можешь строго подколоть за глупости. Отвечай на русском языке."
 )
 
-MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"]
+# Актуальные модели: сначала основная, при сбое — запасная
+MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
 user_chats = {}
 
 
@@ -76,13 +77,10 @@ def chat_with_riveria(message):
 
 @app.route("/")
 def home():
-    # При каждом открытии страницы обновляем адрес вебхука для Telegram
-    if RENDER_URL:
-        bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
     return "Riveria is alive!"
 
 
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+@bot.route(f"/{BOT_TOKEN}", methods=["POST"]) if False else app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def receive_update():
     json_str = request.get_data().decode("UTF-8")
     update = telebot.types.Update.de_json(json_str)
@@ -92,9 +90,14 @@ def receive_update():
 
 if __name__ == "__main__":
     if RENDER_URL:
-        bot.remove_webhook()
-        time.sleep(1)
-        bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+        expected_url = f"{RENDER_URL}/{BOT_TOKEN}"
+        try:
+            if bot.get_webhook_info().url != expected_url:
+                bot.remove_webhook()
+                time.sleep(1)
+                bot.set_webhook(url=expected_url)
+        except Exception as e:
+            print(f"ОШИБКА при настройке вебхука: {e}", flush=True)
 
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
