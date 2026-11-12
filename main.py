@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from flask import Flask, request
 from google import genai
@@ -21,7 +22,7 @@ RIVERIA_PERSONA = (
 )
 
 # Актуальные модели: сначала основная, при сбое — запасная
-MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"]
+MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
 user_chats = {}
 
 
@@ -57,8 +58,9 @@ def clear_memory(message):
     )
 
 
-@bot.message_handler(content_types=["text"])
-def chat_with_riveria(message):
+def process_ai_reply(message):
+    # Показываем в телеграме статус "печатает..."
+    bot.send_chat_action(message.chat.id, "typing")
     for model_name in MODELS:
         try:
             chat = get_chat(message.chat.id, model_name)
@@ -75,12 +77,18 @@ def chat_with_riveria(message):
     )
 
 
+@bot.message_handler(content_types=["text"])
+def chat_with_riveria(message):
+    # Запускаем генерацию ответа в фоне, чтобы Telegram сразу получил "OK" и не слал дубли
+    threading.Thread(target=process_ai_reply, args=(message,)).start()
+
+
 @app.route("/")
 def home():
     return "Riveria is alive!"
 
 
-@bot.route(f"/{BOT_TOKEN}", methods=["POST"]) if False else app.route(f"/{BOT_TOKEN}", methods=["POST"])
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def receive_update():
     json_str = request.get_data().decode("UTF-8")
     update = telebot.types.Update.de_json(json_str)
