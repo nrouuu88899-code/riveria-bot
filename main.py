@@ -20,7 +20,7 @@ RIVERIA_PERSONA = (
     "к собеседнику, иногда можешь строго подколоть за глупости. Отвечай на русском языке."
 )
 
-MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"]
+MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"]
 user_chats = {}
 
 
