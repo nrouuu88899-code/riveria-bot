@@ -45,7 +45,7 @@ def chat_with_riveria(message):
         )
         bot.send_message(message.chat.id, response.text)
     except Exception as e:
-        print(f"ОШИБКА: {e}")
+        print(f"ОШИБКА: {e}", flash=True)
         bot.send_message(
             message.chat.id, "Хм... Магия дала сбой, смертный. Попробуй еще раз."
         )
