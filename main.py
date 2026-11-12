@@ -31,7 +31,7 @@ def get_chat(chat_id):
     # Если для этого пользователя еще нет истории, создаем новый чат с характером Риверии
     if chat_id not in user_chats:
         user_chats[chat_id] = ai_client.chats.create(
-            model="gemini-3.0-flash",
+            model="gemini-3.8-flash",
             config={"system_instruction": RIVERIA_PERSONA},
         )
     return user_chats[chat_id]
