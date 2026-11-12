@@ -22,7 +22,7 @@ RIVERIA_PERSONA = (
 )
 
 # Актуальные модели: сначала основная, при сбое — запасная
-MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"]
+MODELS = ["gemini-2.5-flash", "gemini-3.5-flash-lite"]
 user_chats = {}
 
 
@@ -59,12 +59,41 @@ def clear_memory(message):
 
 
 def process_ai_reply(message):
-    # Показываем в телеграме статус "печатает..."
     bot.send_chat_action(message.chat.id, "typing")
+    
+    # Проверяем, есть ли в сообщении картинка
+    image_part = None
+    if message.photo:
+        try:
+            # Берем самое качественное фото из списка
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            
+            # Определяем расширение (обычно jpg)
+            ext = file_info.file_path.split('.')[-1]
+            mime_type = f"image/{ext}" if ext in ["jpeg", "png", "webp"] else "image/jpeg"
+            
+            # Упаковываем картинку для Gemini SDK
+            image_part = genai.types.Part.from_bytes(
+                data=downloaded_file,
+                mime_type=mime_type
+            )
+        except Exception as e:
+            print(f"Ошибка при скачивании фото: {e}", flush=True)
+
+    # Текст сообщения или подпись к фото
+    user_text = message.text or message.caption or "Посмотри на это."
+
     for model_name in MODELS:
         try:
             chat = get_chat(message.chat.id, model_name)
-            response = chat.send_message(message.text)
+            
+            # Если есть картинка, отправляем её вместе с текстом в чат
+            if image_part:
+                response = chat.send_message([image_part, user_text])
+            else:
+                response = chat.send_message(user_text)
+                
             bot.send_message(message.chat.id, response.text)
             return
         except Exception as e:
@@ -77,9 +106,9 @@ def process_ai_reply(message):
     )
 
 
-@bot.message_handler(content_types=["text"])
+@bot.message_handler(content_types=["text", "photo"])
 def chat_with_riveria(message):
-    # Запускаем генерацию ответа в фоне, чтобы Telegram сразу получил "OK" и не слал дубли
+    # Теперь ловит и текст, и картинки
     threading.Thread(target=process_ai_reply, args=(message,)).start()
 
 
